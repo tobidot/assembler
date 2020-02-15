@@ -80,14 +80,8 @@ draw_string_end:
     pop ax
     ret
 
-set_cursor:
-    push ax
-    mov ah, 0x02
-    mov bh, 0x0
-    int 0x10
-    pop ax
-    ret
 
+    int 0x20
 ; ---- library functions -----
 
 ; --- printing
@@ -126,6 +120,16 @@ print_string_end:
     pop ax
     ret
     
+; --- screen control
+
+set_cursor:
+    push ax
+    mov ah, 0x02
+    mov bh, 0x0
+    int 0x10
+    pop ax
+    ret
+
 clear_screen:
     push ax
     mov ah, 0x00
@@ -134,22 +138,7 @@ clear_screen:
     pop ax
     ret
 
-; --- others
-
-
-get_time:   ; ticks are in (high) cx, (low) dx
-    push ax 
-    mov ah, 0x00
-    int 0x1A
-    pop ax
-    ret    
-
-is_key_pressed:
-    push ax
-    mov ah, 0x01
-    int 0x16
-    pop ax
-    ret
+; --- flow controls
 
 wait_for_tick:   ; ticks are in cx, dx
     push ax 
@@ -164,4 +153,25 @@ wait_for_tick_1:
     pop dx
     pop cx
     pop ax
-    ret             
+    ret     
+
+; --- interrupt shorthands
+
+get_time:   ; ticks are in (high) cx, (low) dx
+    push ax 
+    mov ah, 0x00
+    int 0x1A
+    pop ax
+    ret    
+
+is_key_pressed: ; set the Z-Flag (jz label) to 1 if a key is pressed
+    push ax
+    mov ah, 0x01
+    int 0x16
+    pop ax
+    ret
+
+; --- others
+        
+
+    int 0x20
