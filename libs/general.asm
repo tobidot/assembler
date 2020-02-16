@@ -1,6 +1,6 @@
 
+; ---- general - library functions -----
     int 0x20
-; ---- library functions -----
 
 ; --- printing
 
@@ -40,11 +40,16 @@ print_string_end:
     
 ; --- screen control
 
+; mov the cursoer 
+; (dh) => row
+; (dl) => col
 set_cursor:
     push ax
+    push bx
     mov ah, 0x02
     mov bh, 0x0
     int 0x10
+    pop bx
     pop ax
     ret
 
@@ -73,20 +78,41 @@ wait_for_tick_1:
     pop ax
     ret     
 
+; returns 
+; (ah) = keycode
+; (al) = ascii char
+wait_for_key_press:     
+    call is_key_pressed
+    nop
+    jz wait_for_key_press
+    call get_key_pressed
+    ret    
+
 ; --- interrupt shorthands
 
-get_time:   ; ticks are in (high) cx, (low) dx
+
+; ticks are in (high) cx, (low) dx
+get_time:   
     push ax 
     mov ah, 0x00
     int 0x1A
     pop ax
     ret    
 
-is_key_pressed: ; set the Z-Flag (jz label) to 1 if a key is pressed
+; set the Z-Flag (jz label) to 1 if a key is pressed
+is_key_pressed: 
     push ax
     mov ah, 0x01
     int 0x16
     pop ax
+    ret
+
+; returns 
+; (ah) = keycode
+; (al) = ascii char
+get_key_pressed: 
+    mov ah, 0x00
+    int 0x16
     ret
 
 ; --- others

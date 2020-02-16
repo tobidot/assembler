@@ -7,88 +7,87 @@
     jmp start
 
 
-
-x_pos: equ 0x0800
-string: db "Hello, world", 0
-string_welcome: db "Welcome: ", 0
+bitmap_y: 
+    db 0b01000010
+    db 0b00100100
+    db 0b00011000
+    db 0b00110000
+    db 0b01100000
+    db 0b11000000
 
 start:
-    call clear_screen
-    mov dx, 0x0618
-    call set_cursor
-    mov bx, string_welcome
-    call print_string
-    mov byte [x_pos], 0
-main_loop:
-    mov cx, 12
-main_loop_1:
-    call draw
-    add byte [x_pos], 1
-    nop
-    call wait_for_tick
-    call is_key_pressed
-    jnz end
-    loop main_loop_1  
-    mov cx, 12
-main_loop_2:
-    sub byte [x_pos], 1
-    call draw
-    nop
-    call wait_for_tick
-    call is_key_pressed
-    jnz end
-    loop main_loop_2  
-    jmp main_loop
-end:
+    call clear_screen  
+    mov bx, bitmap_y
+    mov cx, 0x0105    
+    mov dx, 0x0408
+    call draw_bitmap
+
+    mov dx, 0x0804
+    call set_cursor  
     mov al, '?'
-    call print_char
-    mov ah, 0x0
-    int 0x16
+    call print_char    
+    call wait_for_key_press
+    call print_char  
+end:
     int 0x20
+   
+; --- funcitons
 
-draw:
-    mov dx, 0x0818
-    call set_cursor
-    mov ax, string
-    call draw_string
-    call print_newline
-    ret
-
-draw_string:
+; --- draws the bitmap at [bx] with (ch*8) cols and (cl) rows at position (dx)
+; at (dx) position => (dh) => row, (dl) => col
+; 8 x 6
+draw_bitmap:
     push ax
-    push bx
+    push bx 
     push cx
-    mov bx, ax
-    mov cx, 0    
-draw_string_repeat:
-    push bx                 ; get current char of string
-    add bx, cx
-    mov al, [bx]            
-    pop bx
-    cmp al, 0               ; is string finished
-    je draw_string_end
-    cmp cl, byte [x_pos]     ; am i at current pos 
-    jne draw_string_repeat_1 ; replace char with an 'X'
-    mov al, 'X'
-draw_string_repeat_1: 
-    call print_char 
-    inc cx
-    jmp draw_string_repeat
-draw_string_end:
+    push dx
+    mov al, ch
+    mov ah, 0x0     ; store cols
+    mov ch, 0x0     ; store rows
+draw_bitmap__all_rows:
+    call set_cursor
+    push cx
+    mov cl, al
+    call draw_bitmap__row
     pop cx
-    pop bx
+    inc dh          ; mov to next line
+    loop draw_bitmap__all_rows
+    pop dx
+    pop cx
+    pop bx 
     pop ax
     ret
-
-set_cursor:
+    
+draw_bitmap__row:    
     push ax
-    mov ah, 0x02
-    mov bh, 0x0
-    int 0x10
+    mov ax, [bx]
+    call draw_bitmap__byte
+    add bx, 1
+    loop draw_bitmap__row
     pop ax
     ret
+draw_bitmap__byte:
+    push cx
+    mov cx, 8
+draw_bitmap__byte_repeat:
+    shl al, 1
+    push ax
+    jnc draw_bitmap__byte_skip
+    mov al, '+'
+    call print_char
+    pop ax
+    loop draw_bitmap__byte_repeat
+draw_bitmap__byte_skip:
+    mov al, ' '
+    call print_char
+    pop ax
+    loop draw_bitmap__byte_repeat
+    pop cx
+    ret
 
-; ---- library functions -----
+   
+; ---- general-library functions -----
+    int 0x20
 
 ; --- printing
 
@@ -126,6 +125,21 @@ print_string_end:
     pop ax
     ret
     
+; --- screen control
+
+; mov the cursoer 
+; (dh) => row
+; (dl) => col
+set_cursor:
+    push ax
+    push bx
+    mov ah, 0x02
+    mov bh, 0x0
+    int 0x10
+    pop bx
+    pop ax
+    ret
+
 clear_screen:
     push ax
     mov ah, 0x00
@@ -134,22 +148,7 @@ clear_screen:
     pop ax
     ret
 
-; --- others
-
-
-get_time:   ; ticks are in (high) cx, (low) dx
-    push ax 
-    mov ah, 0x00
-    int 0x1A
-    pop ax
-    ret    
-
-is_key_pressed:
-    push ax
-    mov ah, 0x01
-    int 0x16
-    pop ax
-    ret
+; --- flow controls
 
 wait_for_tick:   ; ticks are in cx, dx
     push ax 
@@ -164,4 +163,45 @@ wait_for_tick_1:
     pop dx
     pop cx
     pop ax
-    ret             
+    ret     
+    
+; returns 
+; (ah) = keycode
+; (al) = ascii char
+wait_for_key_press:     
+    call is_key_pressed
+    nop
+    jz wait_for_key_press
+    call get_key_pressed
+    ret   
+
+; --- interrupt shorthands
+
+; ticks are in (high) cx, (low) dx
+get_time:   
+    push ax 
+    mov ah, 0x00
+    int 0x1A
+    pop ax
+    ret    
+
+; set the Z-Flag (jz label) to 1 if a key is pressed
+is_key_pressed: 
+    push ax
+    mov ah, 0x01
+    int 0x16
+    pop ax
+    ret
+
+; returns 
+; (ah) = keycode
+; (al) = ascii char
+get_key_pressed: 
+    mov ah, 0x00
+    int 0x16
+    ret
+
+; --- others
+        
+
+    int 0x20
