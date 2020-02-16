@@ -64,9 +64,22 @@ start:
 
 loop:
 
+    call get_time
+    mov ax, dx
+    mov dl, 0x50
+    div dl
+    ;mul ax, 
+
+    mov dx, 0x0500 
+    add dl, ah
+    mov cx, 0x4407
+    push ax
+    mov ax, ' '
+    call draw_rect
+    pop ax
+    
+    add dx, 0x0101
     mov cx, 0x0106    
-    mov dx, 0x0402
-    add dl, 0x5
     mov bx, bitmap_y
     call draw_bitmap    
     mov bx, bitmap_e
@@ -109,9 +122,86 @@ end:
    
 ; --- funcitons
 
+; --- draws a rect at 
+; (dh) => row
+; (dl) => col
+; (ch) => width 
+; (cl) => height
+; (al) => character to draw
+draw_rect:
+    push ax
+    push bx 
+    push cx
+    push dx
+    mov bl, ch
+    mov bh, 0x0
+draw_rect__lines:
+    push dx
+    push cx
+    mov ch, 0x0
+    mov cl, bl  ; set cx to width 
+    call draw_rect__horizontal
+    pop cx
+    pop dx
+
+    push dx
+    push cx
+    add dh, cl  ; mov curser to the bottom
+    mov ch, 0x0
+    mov cl, bl  ; set cx to width 
+    call draw_rect__horizontal
+    pop cx
+    pop dx
+
+    push dx
+    push cx
+    mov ch, 0x0
+    call draw_rect__vertical
+    pop cx
+    pop dx
+    
+    push dx
+    push cx
+    add dl, ch  ; mov curser to the right
+    mov ch, 0x0
+    call draw_rect__vertical
+    pop cx
+    pop dx
+    ;
+    pop dx
+    pop cx
+    pop bx 
+    pop ax
+    ret    
+draw_rect__horizontal:
+    push cx
+    push dx
+draw_rect__horizontal_repeat:
+    call set_cursor    
+    call print_char
+    inc dl  
+    loop draw_rect__horizontal_repeat
+    pop dx
+    pop cx
+    ret
+draw_rect__vertical:
+    push cx
+    push dx
+draw_rect__vertical_repeat:
+    call set_cursor    
+    call print_char
+    inc dh  
+    loop draw_rect__vertical_repeat
+    pop dx
+    pop cx
+    ret
+
+
 ; --- draws the bitmap at [bx] with (ch*8) cols and (cl) rows at position (dx)
-; at (dx) position => (dh) => row, (dl) => col
-; 8 x 6
+; (dh) => row
+; (dl) => col
+; (ch) => width * 8
+; (cl) => height
 draw_bitmap:
     push ax
     push bx 
