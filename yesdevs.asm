@@ -1,6 +1,10 @@
 ; 15.02.2020
 ;
-; Have an animation with a moving X from left to right
+; Yesdevs banner
+; -----
+; 16.02.2020 - fixed an display issue 
+; 16.02.2020 - roll text in from the left to the right
+;
 ;
 
     org 0x0100
@@ -62,23 +66,27 @@ start:
     mov cx, 0x2607
     int 0x10
 
+    mov cx, 0
 loop:
 
-    call get_time
-    mov ax, dx
-    mov dl, 0x50
-    div dl
-    ;mul ax, 
+    inc cx
+    cmp cx, 160  
+    jng loop_1
+    mov cx, 0
+loop_1:
+    push cx
+    sub cl, 80
 
     mov dx, 0x0500 
-    add dl, ah
+    add dl, cl
     mov cx, 0x4407
     push ax
     mov ax, ' '
     call draw_rect
     pop ax
     
-    add dx, 0x0101
+    add dh, 1
+    add dl, 1
     mov cx, 0x0106    
     mov bx, bitmap_y
     call draw_bitmap    
@@ -106,6 +114,7 @@ loop:
 
     call wait_for_tick
     call is_key_pressed
+    pop cx
     jz loop
 end:
     mov ah, 0x01
@@ -123,6 +132,7 @@ end:
 ; --- funcitons
 
 ; --- draws a rect at 
+; !!! needs massive improvement
 ; (dh) => row
 ; (dl) => col
 ; (ch) => width 
@@ -211,11 +221,16 @@ draw_bitmap:
     mov ah, 0x0     ; store cols
     mov ch, 0x0     ; store rows
 draw_bitmap__all_rows:
-    call set_cursor
+    cmp dh, 0                   ; check boundries
+    jl draw_bitmap__all_rows_1
+    cmp dh, 23
+    jg draw_bitmap__all_rows_1
+    call set_cursor             ; draw row
     push cx
     mov cl, al
     call draw_bitmap__row
     pop cx
+draw_bitmap__all_rows_1: 
     inc dh          ; mov to next line
     loop draw_bitmap__all_rows
     pop dx
@@ -226,13 +241,22 @@ draw_bitmap__all_rows:
     
 draw_bitmap__row:    
     push ax
+    push dx
+    cmp dl, 0                   ; check boundries
+    jl draw_bitmap__row_1
+    cmp dl, 72
+    jg draw_bitmap__row_1
     mov ah, 0x0
     mov al, byte [bx]
     call draw_bitmap__byte
+draw_bitmap__row_1:
     add bx, 1
+    add dl, 1
     loop draw_bitmap__row
+    pop dx
     pop ax
     ret
+
 draw_bitmap__byte:
     push cx
     mov cx, 8
