@@ -8,27 +8,103 @@
 
 
 bitmap_y: 
+    db 0b00000000
+    db 0b10000010
+    db 0b01000100
+    db 0b00101000
+    db 0b00110000
+    db 0b11100000
+
+bitmap_e: 
+    db 0b00000000
+    db 0b00111100
+    db 0b01000010
+    db 0b01111110
+    db 0b01000000
+    db 0b00111100
+
+bitmap_s: 
+    db 0b00000000
+    db 0b01111110
+    db 0b11000001
+    db 0b00111100
+    db 0b10000011
+    db 0b01111110
+
+bitmap_d: 
+    db 0b00000010
+    db 0b00000010
+    db 0b00111110
+    db 0b01000010
+    db 0b01000010
+    db 0b00111110
+
+bitmap_ex: 
+    db 0b00011000
+    db 0b00111100
+    db 0b00011000
+    db 0b00011000
+    db 0b00000000
+    db 0b00011000
+
+bitmap_v: 
+    db 0b00000000
+    db 0b01000010
     db 0b01000010
     db 0b00100100
+    db 0b00100100
     db 0b00011000
-    db 0b00110000
-    db 0b01100000
-    db 0b11000000
 
-start:
+
+start:    
     call clear_screen  
+    mov ah, 0x01
+    mov cx, 0x2607
+    int 0x10
+
+loop:
+
+    mov cx, 0x0106    
+    mov dx, 0x0402
+    add dl, 0x5
     mov bx, bitmap_y
-    mov cx, 0x0105    
-    mov dx, 0x0408
+    call draw_bitmap    
+    mov bx, bitmap_e
+    add dl, 0x08
+    call draw_bitmap
+    mov bx, bitmap_s
+    add dl, 0x08
+    call draw_bitmap
+    mov bx, bitmap_ex
+    add dl, 0x08
+    call draw_bitmap
+    mov bx, bitmap_d
+    add dl, 0x08
+    call draw_bitmap
+    mov bx, bitmap_e
+    add dl, 0x08
+    call draw_bitmap
+    mov bx, bitmap_v
+    add dl, 0x08
+    call draw_bitmap
+    mov bx, bitmap_s
+    add dl, 0x08
     call draw_bitmap
 
-    mov dx, 0x0804
+    call wait_for_tick
+    call is_key_pressed
+    jz loop
+end:
+    mov ah, 0x01
+    mov cx, 0x0607
+    int 0x10
+
+    mov dx, 0x0e04
     call set_cursor  
     mov al, '?'
     call print_char    
     call wait_for_key_press
     call print_char  
-end:
     int 0x20
    
 ; --- funcitons
@@ -60,7 +136,8 @@ draw_bitmap__all_rows:
     
 draw_bitmap__row:    
     push ax
-    mov ax, [bx]
+    mov ah, 0x0
+    mov al, byte [bx]
     call draw_bitmap__byte
     add bx, 1
     loop draw_bitmap__row
@@ -70,18 +147,20 @@ draw_bitmap__byte:
     push cx
     mov cx, 8
 draw_bitmap__byte_repeat:
-    shl al, 1
+    shl al, 1                       ; check leftmost bit if set
     push ax
-    jnc draw_bitmap__byte_skip
+    jnc draw_bitmap__byte_skip      ; then draw '+''
     mov al, '+'
     call print_char
     pop ax
     loop draw_bitmap__byte_repeat
-draw_bitmap__byte_skip:
+    jmp draw_bitmap__byte_end
+draw_bitmap__byte_skip:             ; else draw ' '
     mov al, ' '
     call print_char
     pop ax
     loop draw_bitmap__byte_repeat
+draw_bitmap__byte_end:
     pop cx
     ret
 
